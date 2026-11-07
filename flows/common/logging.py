@@ -1,4 +1,3 @@
-"""Logger con formato uniforme para todas las etapas."""
 import logging
 import sys
 
