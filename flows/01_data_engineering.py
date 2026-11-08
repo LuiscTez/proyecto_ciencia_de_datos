@@ -108,3 +108,86 @@ def add_survivor_label(df: pd.DataFrame) -> pd.DataFrame:
     result['Survivor'] = result['Survived'].map({0: 'No', 1: 'Yes'})
     
     return result
+
+def impute_embarked(df: pd.DataFrame) -> pd.DataFrame:
+    """Rellena los nulos de 'Embarked' con la moda (el puerto más frecuente)."""
+    result = df.copy()
+    
+    # Calculamos la moda (el valor más repetido). 
+    # .mode()[0] toma el primer valor en caso de que haya empates.
+    moda_embarked = result['Embarked'].mode()[0]
+    
+    # Rellenamos los nulos (asignando a la columna, sin usar inplace=True)
+    result['Embarked'] = result['Embarked'].fillna(moda_embarked)
+    
+    return result
+
+def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
+    """Convierte variables de texto a números para los modelos."""
+    result = df.copy()
+    
+    # Codificación de Embarked (S -> 0, C -> 1, Q -> 2)
+    result['NEmbarked'] = result['Embarked'].map({'S': 0, 'C': 1, 'Q': 2})
+    
+    # (Aquí irán las demás codificaciones de los siguientes pasos)
+    return result
+
+def impute_age(df: pd.DataFrame) -> pd.DataFrame:
+    """Imputa 'Age' con el promedio por 'Sex'.
+
+    Conserva la edad original en 'AgeOriginal' (con NaN) y marca las filas
+    imputadas en 'AgeImputada' (bool). Usada para EXPLORAR; el modelo (Parte 11)
+    vuelve a imputar solo con datos de entrenamiento.
+    """
+    # 1. df['AgeOriginal'] = df['Age']; df['AgeImputada'] = df['Age'].isna()
+    # 2. promedios = df.groupby('Sex')['Age'].mean()
+    # 3. df['Age'] = df['Age'].fillna(df['Sex'].map(promedios))
+    raise NotImplementedError
+
+def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
+    """Convierte variables de texto a números para los modelos."""
+    result = df.copy()
+    
+    # Paso 21: Codificación de Embarked (S -> 0, C -> 1, Q -> 2)
+    result['NEmbarked'] = result['Embarked'].map({'S': 0, 'C': 1, 'Q': 2})
+    
+    # Paso 23: Codificación de Sex (female -> 0, male -> 1)
+    result['NSex'] = result['Sex'].map({'female': 0, 'male': 1})
+    
+    # Paso 24: Codificación de Cabin (usando el diccionario FIJO)
+    # DECKS ya está definida al principio de tu archivo como: list("ABCDEFGTX")
+    mapa_cabin = {letra: i for i, letra in enumerate(DECKS)}
+    result['NCabin'] = result['TCabin'].map(mapa_cabin)
+    
+    return result
+
+def add_title(df: pd.DataFrame) -> pd.DataFrame:
+    """Extrae el título del nombre (ej. 'Mr', 'Mrs', 'Miss') usando regex."""
+    
+    result = df.copy()
+    
+    # Usamos str.extract con la expresión regular
+    # El patrón busca una coma, espacios opcionales, captura el texto hasta el punto.
+    result['TTitulo'] = result['Name'].str.extract(r',\s*([^\.]+)\.', expand=False).str.strip()
+    
+    return result
+
+def consolidate_titles(df: pd.DataFrame) -> pd.DataFrame:
+    """Consolida los títulos raros en categorías principales o 'Otro'."""
+    result = df.copy()
+    
+    # 1. Reemplazamos usando el diccionario (ej. 'the Countess' -> 'Mrs')
+    result['TTitulo'] = result['TTitulo'].replace(TITLE_MAP)
+    
+    # 2. Todo lo que NO esté en MAIN_TITLES (Mr, Mrs, Miss) se convierte en 'Otro'
+    result['TTitulo'] = result['TTitulo'].where(result['TTitulo'].isin(MAIN_TITLES), 'Otro')
+    
+    return result
+
+def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
+    # ... (código anterior de Embarked, Sex y Cabin) ...
+    
+    # Paso 26: Codificación de TTitulo (Mr -> 0, Mrs -> 1, Miss -> 2, Otro -> 3)
+    result['NTitulo'] = result['TTitulo'].map({'Mr': 0, 'Mrs': 1, 'Miss': 2, 'Otro': 3})
+    
+    return result
