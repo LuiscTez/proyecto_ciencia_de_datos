@@ -191,3 +191,57 @@ def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
     result['NTitulo'] = result['TTitulo'].map({'Mr': 0, 'Mrs': 1, 'Miss': 2, 'Otro': 3})
     
     return result
+
+def drop_original_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Devuelve una COPIA sin Name, Sex, Embarked y Cabin."""
+    
+    # Hacemos una copia para no modificar el DataFrame original
+    result = df.copy()
+    
+    # Definimos las columnas de texto que ya fueron codificadas
+    columnas_a_eliminar = ['Name', 'Sex', 'Embarked', 'Cabin']
+    
+    # Eliminamos las columnas
+    result = result.drop(columns=columnas_a_eliminar)
+    
+    return result
+
+def validate_bronze(df: pd.DataFrame) -> pd.DataFrame:
+    """Lanza ValueError si faltan columnas o hay IDs duplicados."""
+    # Verificamos que estén todas las columnas esperadas
+    faltantes = set(EXPECTED_COLUMNS) - set(df.columns)
+    if faltantes:
+        raise ValueError(f"Faltan columnas en Bronze: {faltantes}")
+    
+    # Verificamos que no haya IDs duplicados
+    if df['PassengerId'].duplicated().any():
+        raise ValueError("Hay PassengerId duplicados")
+        
+    return df
+
+def cast_types(df: pd.DataFrame) -> pd.DataFrame:
+    """Convierte las columnas a sus tipos numéricos correctos."""
+    result = df.copy()
+    
+    # Convertimos a entero
+    for col in ['Survived', 'Pclass', 'SibSp', 'Parch']:
+        result[col] = result[col].astype('Int64') # Usamos Int64 (mayúscula) para permitir nulos si los hay
+        
+    # Convertimos a flotante (decimal)
+    for col in ['Age', 'Fare']:
+        result[col] = result[col].astype(float)
+        
+    return result
+
+def validate_silver(df: pd.DataFrame) -> pd.DataFrame:
+    """Lanza ValueError si hay nulos en las columnas obligatorias."""
+    columnas_sin_nulos = [
+        'Survived', 'Pclass', 'Age', 'Fare', 'Embarked', 'Person', 
+        'Alone', 'TCabin', 'TTitulo', 'NSex', 'NEmbarked', 'NCabin', 'NTitulo'
+    ]
+    
+    # Verificamos si alguna de esas columnas tiene nulos
+    if df[columnas_sin_nulos].isnull().any().any():
+        raise ValueError("Hay valores nulos en columnas que deberían estar llenas")
+        
+    return df
