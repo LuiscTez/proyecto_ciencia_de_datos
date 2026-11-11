@@ -91,13 +91,21 @@ def add_person(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_cabin_features(df: pd.DataFrame) -> pd.DataFrame:
     """Agrega 'TCabin' (primera letra de Cabin, 'X' si es nula) y 'HasCabin' (0/1)."""
-    # TODO: df['Cabin'].str[0].fillna('X'); df['Cabin'].notna().astype(int)
-    raise NotImplementedError
+    result = df.copy()
+    
+    result['TCabin'] = result['Cabin'].str[0].fillna('X')
+    result['HasCabin'] = result['Cabin'].notna().astype(int)
+    
+    return result
 
 def add_family_features(df: pd.DataFrame) -> pd.DataFrame:
     """Agrega 'Familia' = SibSp + Parch y 'Alone' ('with Family' si Familia > 0, 'Alone' si no)."""
-    # TODO
-    raise NotImplementedError
+    result = df.copy()
+    
+    result['Familia'] = result['SibSp'] + result['Parch']
+    result['Alone'] = np.where(result['Familia'] > 0, 'with Family', 'Alone')
+    
+    return result
 
 def add_survivor_label(df: pd.DataFrame) -> pd.DataFrame:
     """Agrega 'Survivor' mapeando 0 -> 'No' y 1 -> 'Yes' (solo para etiquetar gráficos)."""
@@ -133,16 +141,16 @@ def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 def impute_age(df: pd.DataFrame) -> pd.DataFrame:
-    """Imputa 'Age' con el promedio por 'Sex'.
-
-    Conserva la edad original en 'AgeOriginal' (con NaN) y marca las filas
-    imputadas en 'AgeImputada' (bool). Usada para EXPLORAR; el modelo (Parte 11)
-    vuelve a imputar solo con datos de entrenamiento.
-    """
-    # 1. df['AgeOriginal'] = df['Age']; df['AgeImputada'] = df['Age'].isna()
-    # 2. promedios = df.groupby('Sex')['Age'].mean()
-    # 3. df['Age'] = df['Age'].fillna(df['Sex'].map(promedios))
-    raise NotImplementedError
+    """Imputa 'Age' con el promedio por 'Sex'."""
+    result = df.copy()
+    
+    result['AgeOriginal'] = result['Age']
+    result['AgeImputada'] = result['Age'].isna()
+    
+    promedios = result.groupby('Sex')['Age'].mean()
+    result['Age'] = result['Age'].fillna(result['Sex'].map(promedios))
+    
+    return result
 
 def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
     """Convierte variables de texto a números para los modelos."""
@@ -185,11 +193,25 @@ def consolidate_titles(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 def encode_categoricals(df: pd.DataFrame) -> pd.DataFrame:
-    # ... (código anterior de Embarked, Sex y Cabin) ...
+    """Convierte variables de texto a números para los modelos."""
     
-    # Paso 26: Codificación de TTitulo (Mr -> 0, Mrs -> 1, Miss -> 2, Otro -> 3)
+    # ¡ESTA ES LA LÍNEA QUE FALTA O SE BORRÓ!
+    result = df.copy() 
+    
+    # Codificación de Embarked (S -> 0, C -> 1, Q -> 2)
+    result['NEmbarked'] = result['Embarked'].map({'S': 0, 'C': 1, 'Q': 2})
+    
+    # Codificación de Sex (female -> 0, male -> 1)
+    result['NSex'] = result['Sex'].map({'female': 0, 'male': 1})
+    
+    # Codificación de Cabin (usando la lista DECKS)
+    mapa_cabin = {letra: i for i, letra in enumerate(DECKS)}
+    result['NCabin'] = result['TCabin'].map(mapa_cabin)
+    
+    # Codificación de TTitulo (Mr -> 0, Mrs -> 1, Miss -> 2, Otro -> 3)
     result['NTitulo'] = result['TTitulo'].map({'Mr': 0, 'Mrs': 1, 'Miss': 2, 'Otro': 3})
     
+    # ¡NO  EL RETURN!
     return result
 
 def drop_original_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -219,19 +241,6 @@ def validate_bronze(df: pd.DataFrame) -> pd.DataFrame:
         
     return df
 
-def cast_types(df: pd.DataFrame) -> pd.DataFrame:
-    """Convierte las columnas a sus tipos numéricos correctos."""
-    result = df.copy()
-    
-    # Convertimos a entero
-    for col in ['Survived', 'Pclass', 'SibSp', 'Parch']:
-        result[col] = result[col].astype('Int64') # Usamos Int64 (mayúscula) para permitir nulos si los hay
-        
-    # Convertimos a flotante (decimal)
-    for col in ['Age', 'Fare']:
-        result[col] = result[col].astype(float)
-        
-    return result
 
 def validate_silver(df: pd.DataFrame) -> pd.DataFrame:
     """Lanza ValueError si hay nulos en las columnas obligatorias."""
@@ -245,3 +254,15 @@ def validate_silver(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("Hay valores nulos en columnas que deberían estar llenas")
         
     return df
+
+def cast_types(df: pd.DataFrame) -> pd.DataFrame:
+    """Convierte las columnas a sus tipos numéricos correctos."""
+    result = df.copy()
+    
+    for col in ['Survived', 'Pclass', 'SibSp', 'Parch']:
+        result[col] = result[col].astype('Int64')
+        
+    for col in ['Age', 'Fare']:
+        result[col] = result[col].astype(float)
+        
+    return result  # <-- ESTO ES CLAVE
