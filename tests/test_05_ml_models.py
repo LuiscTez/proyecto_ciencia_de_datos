@@ -1,0 +1,68 @@
+import importlib
+import numpy as np
+import pandas as pd
+import pytest
+
+ml = importlib.import_module("flows.05_ml_models")
+
+@pytest.fixture
+def tiny():
+    """Dataset sintético con las columnas candidatas, para probar sin depender de Silver."""
+    rng = np.random.default_rng(0)
+    X = pd.DataFrame({
+        "Age": np.where(rng.random(6) < 0.2, np.nan, rng.uniform(1.0, 70.0, 6)),
+        "Fare": rng.uniform(5.0, 100.0, 6),
+        "SibSp": rng.integers(0, 3, 6),
+        "Parch": rng.integers(0, 3, 6),
+        "Familia": rng.integers(0, 5, 6),
+        "Pclass": rng.integers(1, 4, 6),
+        "Sex": rng.choice(["male", "female"], 6),
+        "Embarked": rng.choice(["S", "C", "Q", None], 6),
+        "Alone": rng.choice(["Alone", "with Family"], 6),
+        "HasCabin": rng.integers(0, 2, 6),
+        "TCabin": rng.choice(["C", "X", "B"], 6),
+    })
+    y = pd.Series((X["Sex"] == "female") & (rng.random(6) < 0.9)).astype(int)
+    return X, y
+
+def test_group_age_imputer_uses_only_training_statistics(tiny):
+    X, _ = tiny
+    train = X.iloc[:4].copy()
+    
+    # 1. FORZAMOS los géneros para que el test no dependa del azar
+    train.loc[0, "Sex"] = "male"
+    train.loc[1, "Sex"] = "female"
+    train.loc[2, "Sex"] = "female"
+    train.loc[3, "Sex"] = "female"
+    
+    # 2. Asignamos los nulos y edades
+    train.loc[0, "Age"] = np.nan
+    train.loc[1, "Age"] = np.nan
+    train.loc[2, "Age"] = 40.0
+    train.loc[3, "Age"] = 0.0
+    
+    # 3. Ejecutamos el imputador
+    out = ml.GroupAgeImputer(group_cols=["Sex"]).fit_transform(train)
+    
+    # 4. La media global es (40 + 0) / 2 = 20. 
+    # Como la fila 0 es hombre, la media de hombres es NaN (solo hay un hombre y es nulo).
+    # Por lo tanto, debe usar la media global (20.0).
+    assert out.loc[0, "Age"] == 20.0
+
+def test_pipeline_fits_and_predicts_probabilities(tiny):
+    X, y = tiny
+    pipe = ml.build_pipeline(ml.get_candidates()["logreg"]).fit(X, y)
+    assert len(pipe.predict(X)) == 6
+    probs = pipe.predict_proba(X)
+    assert probs.shape == (len(X), 2) and (0 <= probs).all() and (probs <= 1).all()
+
+def test_split_is_stratified_and_reproducible(tiny):
+    X, y = tiny
+    a = ml.split(X, y, test_size=0.25, random_state=0)
+    b = ml.split(X, y, test_size=0.25, random_state=0)
+    pd.testing.assert_index_equal(a[1].index, b[1].index)
+    assert abs(a[3].mean() - b[3].mean()) < 0.03
+
+def test_candidates_include_baseline_and_are_seeded():
+    cands = ml.get_candidates(42)
+    assert "dummy" in cands and "logreg" in cands and len(cands) >= 5
