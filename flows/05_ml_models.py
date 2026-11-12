@@ -148,3 +148,23 @@ def cross_validate_candidates(X, y, num_features=None, cat_features=None,
     
     log.info("Resultados CV:\n%s", df_results[["model", "mean", "std"]].to_string())
     return df_results
+
+def get_param_grids() -> dict[str, dict]:
+    """Rejillas por modelo, con los nombres que espera el Pipeline (prefijo 'model__')."""
+    return {
+        'logreg': {
+            'model__C': [0.01, 0.1, 1, 10], 
+            'model__penalty': ['l2']
+        },
+        'forest': {
+            'model__n_estimators': [200, 400], 
+            'model__max_depth': [4, 6, 8, None],
+            'model__min_samples_leaf': [1, 3, 5]
+        },
+        'hgb': {
+            'model__learning_rate': [0.03, 0.1], 
+            'model__max_depth': [2, 3, 4],
+            'model__max_iter': [100, 200], 
+            'model__l2_regularization': [0.0, 1.0]
+        }
+    }
