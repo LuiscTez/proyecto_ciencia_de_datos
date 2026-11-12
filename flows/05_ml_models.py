@@ -15,6 +15,8 @@ from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.ensemble import HistGradientBoostingClassifier
 
 from flows.common.logging import get_logger
 from flows.common.paths import SILVER, SILVER_NAME
@@ -103,3 +105,46 @@ def get_candidates(random_state: int = 42) -> dict:
         "dt": DecisionTreeClassifier(random_state=random_state),
         "gb": GradientBoostingClassifier(random_state=random_state)
     }
+
+def get_candidates(random_state: int = 42) -> dict:
+    """Diccionario: nombre -> estimador sin entrenar."""
+    return {
+        "dummy": DummyClassifier(strategy="most_frequent"),
+        "logreg": LogisticRegression(max_iter=1000, random_state=random_state),
+        "tree": DecisionTreeClassifier(random_state=random_state),
+        "forest": RandomForestClassifier(n_estimators=300, random_state=random_state, n_jobs=-1),
+        "hgb": HistGradientBoostingClassifier(random_state=random_state),
+    }
+
+def cross_validate_candidates(X, y, num_features=None, cat_features=None, 
+                              models=None, cv=5, random_state=42) -> pd.DataFrame:
+    """Devuelve un DataFrame con media y desviación estándar del ROC-AUC por modelo."""
+    models = models or get_candidates(random_state)
+    
+    # 1. Configuramos la validación cruzada estratificada
+    skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
+    
+    results = []
+    
+    # 2. Evaluamos cada modelo
+    for name, model in models.items():
+        # Construimos el pipeline con el modelo actual
+        pipe = build_pipeline(model, num_features, cat_features)
+        
+        # 3. Cross validation (scoring='roc_auc')
+        scores = cross_val_score(pipe, X, y, cv=skf, scoring='roc_auc', n_jobs=-1)
+        
+        # 4. Guardamos los resultados
+        results.append({
+            "model": name,
+            "mean": scores.mean(),
+            "std": scores.std(),
+            "folds": scores.tolist()
+        })
+    
+    # 5. Retornamos el DataFrame ordenado (del mejor al peor)
+    df_results = pd.DataFrame(results)
+    df_results = df_results.sort_values(by="mean", ascending=False).reset_index(drop=True)
+    
+    log.info("Resultados CV:\n%s", df_results[["model", "mean", "std"]].to_string())
+    return df_results
