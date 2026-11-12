@@ -38,3 +38,25 @@ def load_dataset(in_dir=SILVER) -> tuple[pd.DataFrame, pd.Series]:
     y = df[TARGET].copy()
     
     return X, y
+
+from sklearn.model_selection import train_test_split
+
+# ... (tu función load_dataset de antes) ...
+
+def split(X: pd.DataFrame, y: pd.Series, test_size: float | None = None,
+          random_state: int | None = None) -> tuple:
+    """Devuelve X_train, X_test, y_train, y_test, estratificado por y."""
+    ts = test_size if test_size is not None else 0.2
+    rs = random_state if random_state is not None else 42
+
+    return train_test_split(X, y, test_size=ts, random_state=rs, stratify=y)
+
+    
+    
+    # LA CLAVE ESTÁ AQUÍ: stratify=y
+    return train_test_split(
+        X, y, 
+        test_size=ts, 
+        random_state=rs, 
+        stratify=y  # Mantiene la proporción del 38% de supervivientes en ambos grupos
+    )
