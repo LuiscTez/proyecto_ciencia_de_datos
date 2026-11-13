@@ -1,0 +1,40 @@
+{
+  "estimator": "logreg",
+  "params": {
+    "model__C": 1.0,
+    "model__penalty": "l2"
+  },
+  "features": {
+    "num": [
+      "Age",
+      "Fare",
+      "SibSp",
+      "Parch",
+      "Familia"
+    ],
+    "cat": [
+      "Pclass",
+      "Sex",
+      "Embarked",
+      "Alone",
+      "TCabin"
+    ]
+  },
+  "target": "Survived",
+  "threshold": 0.5,
+  "random_state": 42,
+  "n_trains": 891,
+  "data_sha256": "4742a216da26aadbcb17e812cbcd369bfbfaca020bcc21602ab230b3ec083369",
+  "test_metrics": {
+    "accuracy": 0.8100558659217877,
+    "f1": 0.734375,
+    "roc_auc": 0.8447957839262187,
+    "n_test": 179
+  },
+  "name": "titanic_model_v1",
+  "saved_at": "2026-11-13T14:55:52.278125+00:00",
+  "python_version": "3.14.4",
+  "sklearn_version": "1.9.1",
+  "pandas_version": "3.1.0",
+  "model_sha256": "148cdb9c2bf498b18e8ff2a1b4ebc13caf88fe76dfc0986832b757a1e69b51b1"
+}

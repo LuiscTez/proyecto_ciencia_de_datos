@@ -76,3 +76,17 @@ def test_evaluate_on_test_returns_metrics(tiny): # <--- 'tiny', no 'toy'
     assert {"accuracy", "f1", "roc_auc", "n_test"} <= set(res)
     assert 0 <= res["accuracy"] <= 1 
     assert res["n_test"] == len(y_te)
+
+def test_save_and_load_model(tmp_path, tiny):
+    X, y = tiny
+    pipe = ml.train_final(X, y)
+    
+    meta = {"test": "ok"}
+    path = ml.save_model(pipe, meta, name="test_model", model_dir=tmp_path)
+    assert path.exists()
+    
+    # AQUÍ ESTÁ EL CAMBIO: agregamos name="test_model"
+    loaded_pipe, loaded_meta = ml.load_model(model_dir=tmp_path, name="test_model") 
+    
+    assert loaded_meta["test"] == "ok"
+    assert hasattr(loaded_pipe, "predict")    

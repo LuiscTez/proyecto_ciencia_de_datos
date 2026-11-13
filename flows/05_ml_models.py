@@ -3,6 +3,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
+import json
+import datetime
+import sklearn
+import sys
+import hashlib
 from pathlib import Path
 
 from sklearn.model_selection import train_test_split
@@ -35,7 +41,6 @@ FINAL_ESTIMATOR = "logreg"               # <--- CAMBIA ESTO por el modelo que te
 # Si tu modelo ganador fue la Regresión Logística, tus params serían algo como:
 FINAL_PARAMS = {
     "model__C": 1.0,
-    "model__penalty": "l2"
 }
 
 # Si tu modelo ganador fue un Random Forest, sería algo como:
@@ -223,3 +228,71 @@ def evaluate_on_test(pipeline, X_test, y_test, threshold: float = 0.5) -> dict:
         "roc_auc": float(roc_auc_score(y_test, proba)),
         "n_test": int(len(y_test))
     }
+
+def train_final(X: pd.DataFrame, y: pd.Series) -> Pipeline:
+    """Ajusta el pipeline con las decisiones congeladas y lo entrena con TODO (X, y)."""
+    # 1. Definimos las features. Si usamos cabina, la agregamos a las categóricas.
+    cat_features = CAT.copy()
+    if USE_CABIN_FEATURES and "HasCabin" not in cat_features:
+        cat_features.append("HasCabin")
+    
+    num_features = NUM.copy()
+    
+    # 2. Obtenemos el estimador base (ej. logreg o forest)
+    modelo = get_candidates(42)[FINAL_ESTIMATOR]
+    
+    # 3. Construimos el pipeline
+    pipe = build_pipeline(modelo, num_features=num_features, cat_features=cat_features)
+    
+    # 4. Aplicamos los hiperparámetros congelados (los del Paso 64)
+    pipe.set_params(**FINAL_PARAMS)
+    
+    # 5. Entrenamos con el 100% de los datos
+    pipe.fit(X, y)
+    log.info("Modelo final entrenado con %d filas.", len(X))
+    
+    return pipe
+
+def save_model(pipeline: Pipeline, metadata: dict, name: str = MODEL_NAME, 
+               model_dir: Path = Path("models")) -> Path:
+    """Guarda el pipeline (.joblib) y un archivo de metadatos (.metadata.json)."""
+    # Crear carpeta si no existe
+    model_dir.mkdir(parents=True, exist_ok=True)
+    model_path = model_dir / f"{name}.joblib"
+    
+    # 1. Guardar el modelo
+    joblib.dump(pipeline, model_path)
+    
+    # 2. Añadir metadatos automáticos
+    metadata.update({
+        "name": name,
+        "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "python_version": sys.version.split()[0],
+        "sklearn_version": sklearn.__version__,
+        "pandas_version": pd.__version__,
+        "model_sha256": hashlib.sha256(model_path.read_bytes()).hexdigest(),
+    })
+    
+    # 3. Guardar metadatos en JSON
+    (model_dir / f"{name}_metadata.json").write_text(
+        json.dumps(metadata, indent=2, ensure_ascii=False, default=str), 
+        encoding="utf-8"
+    )
+    
+    log.info("Modelo guardado en %s", model_path)
+    return model_path
+
+def load_model(model_dir: Path = Path("models"), name: str = MODEL_NAME) -> tuple[Pipeline, dict]:
+    """Carga el pipeline y sus metadatos; avisa si la versión de scikit-learn cambió."""
+    model_path = model_dir / f"{name}.joblib"
+    meta_path = model_dir / f"{name}_metadata.json"
+    
+    pipeline = joblib.load(model_path)
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    
+    if meta.get("sklearn_version") != sklearn.__version__:
+        log.warning(
+            "¡Atención! Modelo entrenado con sklearn %s; versión actual %s.",
+            meta.get("sklearn_version"), sklearn.__version__
+        )
+    return pipeline, meta
