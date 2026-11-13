@@ -28,6 +28,26 @@ TARGET = "Survived"
 NUM = ["Age", "Fare", "SibSp", "Parch", "Familia"]
 CAT = ["Pclass", "Sex", "Embarked", "Alone", "TCabin"]
 
+# --- Decisiones congeladas (resultado del cuaderno 04; justificadas en reports/problema_ml.md) ---
+MODEL_NAME = "titanic_model_v1"          # Nombre del modelo
+FINAL_ESTIMATOR = "logreg"               # <--- CAMBIA ESTO por el modelo que te ganó (logreg, forest, hgb, etc.)
+
+# Si tu modelo ganador fue la Regresión Logística, tus params serían algo como:
+FINAL_PARAMS = {
+    "model__C": 1.0,
+    "model__penalty": "l2"
+}
+
+# Si tu modelo ganador fue un Random Forest, sería algo como:
+# FINAL_PARAMS = {
+#     "model__n_estimators": 200,
+#     "model__max_depth": 6,
+#     "model__min_samples_leaf": 1
+# }
+
+USE_CABIN_FEATURES = False               # decisión del Paso 61 (excluir HasCabin)
+THRESHOLD = 0.5                          # decisión del Paso 53 (umbral de decisión)
+
 def load_dataset(in_dir: Path = SILVER) -> tuple[pd.DataFrame, pd.Series]:
     """Lee Silver y devuelve X e y."""
     df = pd.read_parquet(Path(in_dir) / SILVER_NAME)
