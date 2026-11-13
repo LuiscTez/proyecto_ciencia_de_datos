@@ -17,6 +17,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
 from flows.common.logging import get_logger
 from flows.common.paths import SILVER, SILVER_NAME
@@ -167,4 +168,22 @@ def get_param_grids() -> dict[str, dict]:
             'model__max_iter': [100, 200], 
             'model__l2_regularization': [0.0, 1.0]
         }
+    }
+
+
+
+def evaluate_on_test(pipeline, X_test, y_test, threshold: float = 0.5) -> dict:
+    """Devuelve exactitud, F1, ROC-AUC y el tamaño de la prueba (dict serializable a JSON)."""
+    # 1. Obtenemos las probabilidades (columna 1 = probabilidad de sobrevivir)
+    proba = pipeline.predict_proba(X_test)[:, 1]
+    
+    # 2. Aplicamos el umbral elegido
+    pred = (proba >= threshold).astype(int)
+    
+    # 3. Calculamos las métricas
+    return {
+        "accuracy": float(accuracy_score(y_test, pred)),
+        "f1": float(f1_score(y_test, pred)),
+        "roc_auc": float(roc_auc_score(y_test, proba)),
+        "n_test": int(len(y_test))
     }
