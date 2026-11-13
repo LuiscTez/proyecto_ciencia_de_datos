@@ -89,4 +89,28 @@ def test_save_and_load_model(tmp_path, tiny):
     loaded_pipe, loaded_meta = ml.load_model(model_dir=tmp_path, name="test_model") 
     
     assert loaded_meta["test"] == "ok"
-    assert hasattr(loaded_pipe, "predict")    
+    assert hasattr(loaded_pipe, "predict")
+
+def test_save_and_load_roundtrip(tmp_path, tiny):
+    X, y = tiny
+    pipe = ml.build_pipeline(ml.get_candidates(42)["logreg"]).fit(X, y)
+    meta = {"version": "1.0", "stage": "train"}
+    
+    path = ml.save_model(pipe, meta, name="my_test_model", model_dir=tmp_path)
+    loaded, meta_loaded = ml.load_model(model_dir=tmp_path, name="my_test_model")
+    
+    # Mismas predicciones
+    np.testing.assert_array_equal(pipe.predict(X), loaded.predict(X))
+    # Metadatos correctos
+    assert {"sklearn_version", "python_version", "model_sha256", "saved_at"} <= set(meta_loaded)
+    assert meta_loaded["version"] == "1.0"
+
+def test_predict_returns_probabilities_and_labels(tiny):
+    X, y = tiny
+    pipe = ml.build_pipeline(ml.get_candidates(42)["logreg"]).fit(X, y)
+    out = ml.predict_pipeline(pipe, X, threshold=0.5)
+    
+    # Verificamos que el dataframe tenga las columnas correctas
+    assert {"proba", "pred"} <= set(out.columns)
+    # Verificamos que las predicciones sean 0 o 1
+    assert set(out["pred"].unique()) <= {0, 1}        

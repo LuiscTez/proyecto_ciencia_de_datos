@@ -296,3 +296,56 @@ def load_model(model_dir: Path = Path("models"), name: str = MODEL_NAME) -> tupl
             meta.get("sklearn_version"), sklearn.__version__
         )
     return pipeline, meta
+
+def predict_pipeline(pipeline: Pipeline, X: pd.DataFrame, threshold: float = THRESHOLD) -> pd.DataFrame:
+    """Devuelve un dataframe con 'proba' (probabilidad) y 'pred' (0/1) para cada fila de X."""
+    # 1. Calculamos la probabilidad de sobrevivir (columna 1)
+    proba = pipeline.predict_proba(X)[:, 1]
+    
+    # 2. Aplicamos el umbral elegido (por defecto 0.5)
+    pred = (proba >= threshold).astype(int)
+    
+    # 3. Devolvemos un dataframe con el mismo índice que X
+    return pd.DataFrame({
+        "proba": proba,
+        "pred": pred
+    }, index=X.index)
+
+def run(in_dir: Path = SILVER, models_dir: Path = Path("models")) -> Path:
+    """Orquesta el flujo de modelado completo: evalúa, entrena el final y guarda."""
+    log.info("Iniciando flujo de modelado final...")
+    
+    # 1. Cargamos los datos
+    X, y = load_dataset(in_dir)
+    
+    # 2. Hacemos el split (Train/Test)
+    X_tr, X_te, y_tr, y_te = split(X, y)
+    
+    # 3. Entrenamos el modelo con el set de entrenamiento (para evaluar)
+    eval_pipe = train_final(X_tr, y_tr)
+    
+    # 4. Evaluamos en el set de prueba
+    metrics = evaluate_on_test(eval_pipe, X_te, y_te, THRESHOLD)
+    log.info("Métricas de evaluación (Test): %s", metrics)
+    
+    # 5. Entrenamos el modelo definitivo con TODOS los datos (Train + Test)
+    model_definitivo = train_final(X, y)
+    
+    # 6. Preparamos los metadatos y guardamos el modelo final
+    data_sha256 = hashlib.sha256((Path(in_dir) / SILVER_NAME).read_bytes()).hexdigest()
+    metadata = {
+        "estimator": FINAL_ESTIMATOR,
+        "params": FINAL_PARAMS,
+        "features_num": NUM,
+        "features_cat": CAT,
+        "target": TARGET,
+        "threshold": THRESHOLD,
+        "n_trains": int(len(X)),
+        "data_sha256": data_sha256,
+        "test_metrics": metrics
+    }
+    
+    ruta_guardado = save_model(model_definitivo, metadata, model_dir=models_dir)
+    log.info("Pipeline de ML finalizado. Modelo en: %s", ruta_guardado)
+    
+    return ruta_guardado
