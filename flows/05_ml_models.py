@@ -187,3 +187,19 @@ def evaluate_on_test(pipeline, X_test, y_test, threshold: float = 0.5) -> dict:
         "roc_auc": float(roc_auc_score(y_test, proba)),
         "n_test": int(len(y_test))
     }
+
+def evaluate_on_test(pipeline, X_test, y_test, threshold: float = 0.5) -> dict:
+    """Devuelve exactitud, F1, ROC-AUC y el tamaño de la prueba."""
+    # 1. Predecimos probabilidades (columna 1 = probabilidad de sobrevivir)
+    proba = pipeline.predict_proba(X_test)[:, 1]
+    
+    # 2. Aplicamos el umbral (por defecto 0.5)
+    pred = (proba >= threshold).astype(int)
+    
+    # 3. Retornamos el diccionario
+    return {
+        "accuracy": float(accuracy_score(y_test, pred)),
+        "f1": float(f1_score(y_test, pred)),
+        "roc_auc": float(roc_auc_score(y_test, proba)),
+        "n_test": int(len(y_test))
+    }

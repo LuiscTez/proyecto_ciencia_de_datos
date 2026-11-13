@@ -67,21 +67,12 @@ def test_candidates_include_baseline_and_are_seeded():
     cands = ml.get_candidates(42)
     assert "dummy" in cands and "logreg" in cands and len(cands) >= 5
 
-def test_evaluate_on_test_returns_metrics(tiny):
-    X, y = tiny  # <--- Cambiado 'toy' por 'tiny'
-    
-    # Hacemos un split interno para la prueba
+def test_evaluate_on_test_returns_metrics(tiny): # <--- 'tiny', no 'toy'
+    X, y = tiny
     X_tr, X_te, y_tr, y_te = ml.split(X, y, test_size=0.25, random_state=1)
-    
-    # Entrenamos un modelo rápido
     pipe = ml.build_pipeline(ml.get_candidates(42)["logreg"]).fit(X_tr, y_tr)
-    
-    # Evaluamos
     res = ml.evaluate_on_test(pipe, X_te, y_te, threshold=0.5)
     
-    # Verificamos que el diccionario tenga las llaves correctas
     assert {"accuracy", "f1", "roc_auc", "n_test"} <= set(res)
-    
-    # Verificamos que los valores sean lógicos
     assert 0 <= res["accuracy"] <= 1 
     assert res["n_test"] == len(y_te)
